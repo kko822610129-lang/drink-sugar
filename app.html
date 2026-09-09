@@ -30,6 +30,12 @@ hr{border:0;border-top:1px solid var(--line);margin:22px 0}details>summary{curso
 footer{font-size:13px;color:var(--muted);margin:18px 2px 0}footer p{margin:8px 0}footer summary{font-size:13px}a{color:var(--blue);text-underline-offset:3px}.storage{background:#fff7e8;padding:10px 13px;font-size:14px;border-radius:8px;margin-bottom:14px}
 :focus-visible{outline:3px solid #9ab1fa;outline-offset:3px}[hidden]{display:none!important}
 @media(max-width:680px){main{padding:20px 12px 32px}.layout{grid-template-columns:1fr;gap:14px}.card{padding:19px}h1{font-size:23px}.total strong{font-size:40px}}
+
+.nutrition-heading{font-size:14px;color:#465b7b;margin-bottom:7px}.nutrients{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid #d7e1f4}.nutrients span{display:block;color:var(--muted);font-size:13px}.nutrients b{display:block;color:var(--text);font-size:15px;margin-top:3px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.goal-ratio{margin:12px 0}.ratio-line{display:flex;justify-content:space-between;gap:10px;font-size:14px;margin-bottom:6px}.ratio-line b{color:var(--blue)}.goal-progress{height:13px;background:#e9eef7;border-radius:20px;overflow:hidden}.goal-progress>div{height:100%;width:0;background:var(--blue);border-radius:20px}.goal-ratio.over b{color:#ad2638}.goal-ratio.over .goal-progress>div{background:#c63d50}
+.record-bar{margin-top:8px;height:9px;background:#edf1f8;border-radius:10px;overflow:hidden}.record-bar>span{display:block;height:100%;background:#7796e5;border-radius:10px}.record-main{padding-right:5px}.section-head{align-items:flex-start}.section-head span{flex-shrink:0}
+.reference-helper{padding:12px 14px;border:1px solid var(--line);border-radius:10px;margin-bottom:16px;background:#fafbff}.reference-helper>summary{font-weight:700;color:var(--blue)}.profile-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}.reference-result{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}.reference-value{font-size:27px;color:var(--blue);font-variant-numeric:tabular-nums}.reference-result p{margin:5px 0 10px}.reference-result .hint{line-height:1.7}.reference-helper .feedback:empty{display:none}
+
 </style>
 </head>
 <body>
@@ -46,7 +52,7 @@ footer{font-size:13px;color:var(--muted);margin:18px 2px 0}footer p{margin:8px 0
       <div id="drinkFields" hidden>
         <p id="drinkInfo" class="hint"></p>
         <div class="field"><label for="amount">실제로 마신 양</label><div class="row"><input id="amount" type="number" min="0.1" max="10000" step="any" inputmode="decimal"><span id="amountUnit" class="unit">mL</span></div><div id="presets" class="presets"></div></div>
-        <div class="preview" aria-live="polite">이 음료로 섭취한 당류 <strong id="sugarPreview">—</strong> g</div>
+        <div class="preview" aria-live="polite"><div id="nutritionHeading" class="nutrition-heading">입력한 양의 영양정보</div>당류 <strong id="sugarPreview">—</strong> g<div class="nutrients"><div><span>나트륨</span><b id="sodiumPreview">—</b></div><div><span>열량</span><b id="energyPreview">—</b></div><div><span>탄수화물</span><b id="carbsPreview">—</b></div></div></div>
         <button id="addDrink" class="primary wide" disabled>오늘 기록에 추가</button>
       </div>
       <p id="entryMessage" class="feedback" role="status"></p>
@@ -56,11 +62,27 @@ footer{font-size:13px;color:var(--muted);margin:18px 2px 0}footer p{margin:8px 0
     </section>
     <section class="card">
       <h2>2. 누적 당류 확인</h2>
-      <form id="limitForm"><label for="limit">알림 기준 (g)</label><div class="row"><input id="limit" type="number" min="0.1" max="1000" step="any" inputmode="decimal" placeholder="직접 입력"><button class="outline" type="submit">적용</button></div><p class="hint">직접 정한 기록 기준이며, 하루 권장섭취량을 뜻하지 않습니다. 비워서 적용하면 알림을 해제합니다.</p></form>
+      <details id="referenceHelper" class="reference-helper" open><summary>나이로 알림 기준 참고값 찾기</summary><div>
+        <form id="referenceForm">
+          <div class="profile-fields"><div class="field"><label for="age">만 나이 (12~18세)</label><input id="age" type="number" min="12" max="18" step="1" inputmode="numeric" placeholder="예: 16" required aria-describedby="referenceHint"></div><div class="field"><label for="sex">기준표의 성별</label><select id="sex" required><option value="">선택</option><option value="male">남자</option><option value="female">여자</option></select></div></div>
+          <button id="findReference" class="outline wide" type="submit" disabled>참고값 계산</button>
+          <p id="referenceHint" class="hint">2025 한국인 영양소 섭취기준을 활용합니다. 개인의 체격·활동량을 반영한 맞춤 권장량은 아닙니다. 범위 밖의 나이는 아래에서 직접 설정하세요.</p>
+          <p id="referenceMessage" class="feedback" role="status"></p>
+        </form>
+        <div id="referenceResult" class="reference-result" hidden aria-live="polite">
+          <div>하루 전체 식품의 첨가당 기준 환산값</div><strong id="referenceValue" class="reference-value">—</strong>
+          <p id="referenceFormula" class="hint"></p>
+          <p class="hint"><strong>음료만으로 이만큼 먹어도 된다는 뜻은 아닙니다.</strong> 이 앱은 영양표시의 총당류를 합산하므로 첨가당과 범위가 다르고, 음식·간식은 빠져 있습니다.</p>
+          <button id="applyReference" class="primary wide" type="button" disabled>이 수치를 내 기록 기준으로 적용</button>
+        </div>
+      </div></details>
+      <form id="limitForm"><label for="limit">내 음료 당류 알림 기준 (g)</label><div class="row"><input id="limit" type="number" min="0.1" max="1000" step="any" inputmode="decimal" placeholder="직접 입력"><button class="outline" type="submit">적용</button></div><p class="hint">내 기록을 위한 기준입니다. 참고값을 적용한 뒤에도 바꿀 수 있습니다. 비워서 적용하면 알림을 해제합니다.</p></form>
       <p id="limitMessage" class="feedback" role="status"></p>
       <div class="hint" id="todayLabel"></div><div class="total"><strong id="total">—</strong><span>g</span></div>
+      <div id="goalRatio" class="goal-ratio" hidden><div class="ratio-line"><span>설정 기준 대비</span><b id="ratioValue">—</b></div><div id="goalProgress" class="goal-progress" role="progressbar" aria-label="설정한 당류 기준 대비 비율" aria-valuemin="0" aria-valuemax="100"><div id="goalFill"></div></div></div>
       <div id="alertMessage" class="notice" role="status">Python 계산이 준비되면 누적량을 표시합니다.</div>
-      <hr><div class="section-head"><h2>오늘 마신 음료</h2><span id="recordCount">0건</span></div><ul id="records" class="records"></ul>
+      <p class="hint">‘기준 이내’는 설정값과의 비교이며, 하루 전체 당류를 적절히 섭취했다는 판정은 아닙니다.</p>
+      <hr><div class="section-head"><h2>기록한 음료별 당류</h2><span id="recordCount">0건</span></div><p id="averageNote" class="hint" hidden></p><ul id="records" class="records"></ul><p id="barNote" class="hint" hidden>마신 양에 따른 당류를 비교합니다. 같은 음료도 마신 양이 다르면 당류가 달라집니다.</p>
     </section>
   </div>
   <footer>
@@ -68,7 +90,9 @@ footer{font-size:13px;color:var(--muted);margin:18px 2px 0}footer p{margin:8px 0
     <details><summary>자료 출처·계산 기준</summary><div>
       <p>검색 자료: 업로드한 원본의 음료 정보 40,765건. 원본에 기재된 출처는 ‘식품의약품안전처 식품영양성분 DB 가공식품 자료(2026-08-28)’입니다. 개별 제품의 최신 수치를 다시 대조한 자료는 아닙니다.</p>
       <p>당류 = 기준량의 당류 × 마신 양 ÷ 기준량. mL와 g는 서로 바꾸지 않습니다. 등록 내용량은 여러 개를 묶은 포장 전체일 수 있으니 실제 포장을 확인하세요. 영양표시가 다르면 직접 입력하세요.</p>
-      <p>당류 환산, 반복문을 이용한 누적 합계, 조건문을 이용한 기준 초과 판정은 Python으로 실행합니다. 화면과 버튼은 HTML·CSS·JavaScript로 연결합니다. 처음에는 인터넷에서 <a href="https://pyodide.org/en/0.27.7/usage/quickstart.html" target="_blank" rel="noopener noreferrer">Python 실행 환경</a>을 불러옵니다. 입력한 기록을 외부로 전송하지 않습니다.</p>
+      <p>알림 참고값 출처: 보건복지부·한국영양학회, <a href="https://kns.or.kr/fileroom/fileroom_view.asp?BoardID=Kdr&amp;idx=167" target="_blank" rel="noopener noreferrer">2025 한국인 영양소 섭취기준</a> 요약표 viii~ix쪽. 에너지 필요추정량은 남자 12~14세 2,500kcal, 15~18세 2,700kcal, 여자 두 연령군 모두 2,000kcal입니다. 이 집단 참고값에 첨가당의 에너지 비율 10%를 곱한 뒤 4kcal/g으로 나눕니다. 해당 지침은 하루 전체 식품의 첨가당을 에너지의 10% 이내로 제한하고 가당음료를 가능한 줄이도록 안내합니다. 영양표시의 총당류에는 우유의 유당처럼 원래 들어 있는 당도 포함되므로 이 앱으로 첨가당 기준 준수 여부를 판정할 수 없습니다.</p>
+      <p>나이·성별은 계산하는 동안만 사용하며 저장하지 않습니다. 기준표의 에너지 수치는 개인의 식사량 목표가 아닙니다. 개인의 체격·활동량 등에 따라 실제 필요량은 달라질 수 있습니다.</p>
+      <p>알림 참고값, 영양정보 환산, 누적 합계, 기준 초과 판정과 기록 1건당 평균·기준 대비 비율은 Python으로 계산합니다. 나트륨·열량·탄수화물은 선택한 음료의 참고 정보이며, 누적 알림은 당류에만 적용합니다. 화면과 버튼은 HTML·CSS·JavaScript로 연결합니다. 처음에는 인터넷에서 <a href="https://pyodide.org/en/0.27.7/usage/quickstart.html" target="_blank" rel="noopener noreferrer">Python 실행 환경</a>을 불러옵니다. 입력한 기록을 외부로 전송하지 않습니다.</p>
     </div></details>
   </footer>
 </main>
@@ -86,11 +110,46 @@ def calculate_sugar(sugar, basis_amount, consumed_amount):
     return sugar * consumed_amount / basis_amount
 
 
+# 당류와 같은 환산식으로 참고 영양정보를 계산합니다.
+def calculate_nutrition(nutrients, basis_amount, consumed_amount):
+    result = {}
+    for name in ["s", "e", "c", "na"]:
+        value = nutrients.get(name)
+        if value is None:
+            result[name] = None  # 정보 없음과 0을 구분합니다.
+        else:
+            result[name] = calculate_sugar(value, basis_amount, consumed_amount)
+    return result
+
+
+# 2025 한국인 영양소 섭취기준 요약표 viii~ix쪽을 참고합니다.
+# 나이·성별 집단의 에너지 필요추정량이므로 개인별 권장량은 아닙니다.
+def get_reference(age, sex):
+    check_number(age, minimum=12, maximum=18)
+    if age != int(age):
+        raise ValueError("만 나이를 정수로 입력하세요.")
+    if sex not in ["male", "female"]:
+        raise ValueError("기준표의 성별을 선택하세요.")
+    if age <= 14:
+        group = "12~14세"
+        energy = 2500 if sex == "male" else 2000
+    else:
+        group = "15~18세"
+        energy = 2700 if sex == "male" else 2000
+    # 하루 전체 식품의 첨가당 10% 기준을 g으로 환산합니다(1g = 4kcal).
+    # 이 수치를 음료 기록에 적용하는 것은 사용자가 정한 기록 기준입니다.
+    reference = energy * 0.10 / 4
+    return {"group": group, "energy": energy, "reference": reference}
+
+
 # 2. 음료를 마실 때마다 기록한 당류를 반복문으로 더합니다.
 def get_summary(records, limit):
     total = 0
+    maximum = 0
     for record in records:
         total = total + record["sugar"]
+        if record["sugar"] > maximum:
+            maximum = record["sugar"]
     total = round(total, 6)  # 소수 계산에서 생기는 미세한 오차를 정리합니다.
 
     # 3. 설정한 기준을 넘으면 경고합니다. 기준과 같으면 기준 이내입니다.
@@ -103,7 +162,14 @@ def get_summary(records, limit):
     else:
         message = "아직 설정한 당류 섭취 기준 이내입니다."
         over = False
-    return {"total": total, "message": message, "over": over}
+    # 기록 1건당 평균과 기준 대비 비율도 Python으로 계산합니다.
+    average = total / len(records) if records else None
+    percent = total / limit * 100 if limit is not None else None
+    widths = []
+    for record in records:
+        widths.append(record["sugar"] / maximum * 100 if maximum > 0 else 0)
+    return {"total": total, "message": message, "over": over,
+            "average": average, "percent": percent, "widths": widths}
 
 
 # 아래는 웹페이지와 Python을 연결하기 위한 입력 확인 코드입니다.
@@ -123,6 +189,15 @@ def process_request(text):
         basis = check_number(data["basis"], minimum=0.000001, maximum=1000000000)
         amount = check_number(data["amount"], minimum=0.000001)
         result = calculate_sugar(sugar, basis, amount)
+    elif request["action"] == "nutrition":
+        basis = check_number(data["basis"], minimum=0.000001, maximum=1000000000)
+        amount = check_number(data["amount"], minimum=0.000001)
+        for value in data["nutrients"].values():
+            if value is not None:
+                check_number(value, maximum=1000000000)
+        result = calculate_nutrition(data["nutrients"], basis, amount)
+    elif request["action"] == "reference":
+        result = get_reference(data["age"], data["sex"])
     elif request["action"] == "summary":
         if len(data["records"]) > 20000:
             raise ValueError("기록 수를 확인하세요.")
@@ -151,6 +226,7 @@ let selectedIndex = null;
 let matches = [];
 let visibleCount = 25;
 let adding = false;
+let reference = null;
 
 function number(value) {
   if (typeof value !== "string" && typeof value !== "number") return null;
@@ -316,19 +392,34 @@ function callPython(action, data) {
     $("retry").hidden = false;
     $("addDrink").disabled = true;
     $("manualAdd").disabled = true;
+    $("findReference").disabled = true;
+    $("applyReference").disabled = true;
     return null;
   }
 }
-function calculateSelected() {
+// 선택한 양의 영양정보는 Python으로 환산합니다.
+function calculateSelectedNutrition() {
   const data = selectedData(), amount = number($("amount").value);
   if (!data || !data.valid || amount === null || amount <= 0 || amount > 10000) return null;
-  const sugar = callPython("sugar", { sugar: data.sugar, basis: data.basis.value, amount: amount });
-  return sugar !== null && sugar <= 10000 ? sugar : null;
+  const nutrients = {};
+  for (const name of ["s", "e", "c", "na"]) nutrients[name] = number(data.drink[name]);
+  return callPython("nutrition", { nutrients: nutrients, basis: data.basis.value, amount: amount });
+}
+function calculateSelected() {
+  const nutrition = calculateSelectedNutrition();
+  return nutrition && nutrition.s !== null && nutrition.s <= 10000 ? nutrition.s : null;
 }
 function updatePreview() {
-  const sugar = calculateSelected();
+  const data = selectedData(), amount = number($("amount").value);
+  const nutrition = calculateSelectedNutrition();
+  const sugar = nutrition ? nutrition.s : null;
   $("sugarPreview").textContent = format(sugar);
-  $("addDrink").disabled = sugar === null || adding;
+  $("nutritionHeading").textContent = data && data.basis && amount !== null && amount > 0 ? amount + unitName(data.basis.unit) + " 영양정보" : "입력한 양의 영양정보";
+  for (const field of [["sodiumPreview", "na", "mg"], ["energyPreview", "e", "kcal"], ["carbsPreview", "c", "g"]]) {
+    const value = nutrition ? nutrition[field[1]] : null;
+    $(field[0]).textContent = value === null ? (pythonReady ? "정보 없음" : "—") : format(value) + " " + field[2];
+  }
+  $("addDrink").disabled = sugar === null || sugar > 10000 || adding;
 }
 function addRecord(name, sugar, amount, unit, source, maker = "") {
   const entry = { id: Date.now().toString(36) + "-" + Math.random().toString(36).slice(2), name: name, sugar: sugar, amount: amount, unit: unit, date: today(), source: source, maker: maker };
@@ -348,16 +439,62 @@ function renderRecords() {
   $("total").textContent = summary ? format(summary.total) : "—";
   $("alertMessage").textContent = summary ? summary.message : "Python 계산이 준비되면 누적량과 알림을 표시합니다.";
   $("alertMessage").className = "notice" + (summary && summary.over ? " over" : "");
+  $("goalRatio").hidden = !summary || summary.percent === null;
+  $("goalRatio").className = "goal-ratio" + (summary && summary.over ? " over" : "");
+  if (summary && summary.percent !== null) {
+    const ratio = summary.percent;
+    $("ratioValue").textContent = format(ratio) + "%";
+    $("goalFill").style.width = Math.min(ratio, 100) + "%";
+    $("goalProgress").setAttribute("aria-valuenow", String(Math.min(ratio, 100)));
+    $("goalProgress").setAttribute("aria-valuetext", "설정 기준의 " + format(ratio) + "%");
+  }
   $("recordCount").textContent = records.length + "건";
+  $("averageNote").hidden = !summary || summary.average === null;
+  $("averageNote").textContent = summary && summary.average !== null ? "기록 1건당 평균 당류 " + format(summary.average) + "g" : "";
+  $("barNote").hidden = !summary || records.length === 0;
   $("limit").value = state.goal === null ? "" : state.goal;
   let html = "";
   for (let index = records.length - 1; index >= 0; index--) {
     const entry = records[index];
     const amount = typeof entry.amount === "number" && ["ml", "g"].includes(entry.unit) ? entry.amount + unitName(entry.unit) : "직접 입력";
-    html += '<li><div class="record-main"><div class="record-name">' + escapeHtml(entry.name) + '</div><div class="record-meta">' + escapeHtml(amount) + '</div></div><span class="record-value">' + format(entry.sugar) + 'g</span><button class="delete" data-delete="' + escapeHtml(entry.id) + '" aria-label="' + escapeHtml(entry.name) + ' 기록 삭제">삭제</button></li>';
+    html += '<li><div class="record-main"><div class="record-name">' + escapeHtml(entry.name) + '</div><div class="record-meta">' + escapeHtml(amount) + '</div>' + (summary ? '<div class="record-bar" aria-hidden="true"><span style="width:' + summary.widths[index] + '%"></span></div>' : '') + '</div><span class="record-value">' + format(entry.sugar) + 'g</span><button class="delete" data-delete="' + escapeHtml(entry.id) + '" aria-label="' + escapeHtml(entry.name) + ' 기록 삭제">삭제</button></li>';
   }
   $("records").innerHTML = html || '<li class="empty">아직 기록한 음료가 없습니다.</li>';
 }
+
+// 입력을 바꾸면 이전 참고값을 적용하지 못하도록 비웁니다.
+function clearReference() {
+  reference = null;
+  $("referenceResult").hidden = true;
+  $("applyReference").disabled = true;
+  $("referenceMessage").textContent = "";
+}
+$("age").addEventListener("input", clearReference);
+$("sex").addEventListener("change", clearReference);
+$("referenceForm").addEventListener("submit", event => {
+  event.preventDefault();
+  clearReference();
+  if (!pythonReady) { $("referenceMessage").textContent = "Python 계산이 준비될 때까지 기다려 주세요."; return; }
+  const age = number($("age").value), sex = $("sex").value;
+  if (!Number.isInteger(age) || age < 12 || age > 18 || !["male", "female"].includes(sex)) {
+    $("referenceMessage").textContent = "만 12~18세의 나이와 기준표의 성별을 입력하세요.";
+    return;
+  }
+  reference = callPython("reference", { age: age, sex: sex });
+  if (!reference) { $("referenceMessage").textContent = "참고값을 계산하지 못했습니다. 위의 Python 상태를 확인하세요."; return; }
+  $("referenceValue").textContent = format(reference.reference) + "g";
+  $("referenceFormula").textContent = (sex === "male" ? "남자 " : "여자 ") + reference.group + " 기준표: " + reference.energy.toLocaleString("ko-KR") + "kcal × 10% ÷ 4kcal/g = " + format(reference.reference) + "g";
+  $("referenceResult").hidden = false;
+  $("applyReference").disabled = false;
+});
+$("applyReference").addEventListener("click", () => {
+  if (!pythonReady || !reference) return;
+  const value = reference.reference;
+  changeState(data => { data.goal = value; });
+  $("limitMessage").textContent = "참고값 " + format(value) + "g을 내 기록 기준으로 적용했습니다. 직접 수정할 수 있습니다.";
+  $("referenceHelper").open = false;
+  $("limit").focus();
+});
 
 // 버튼과 입력창을 연결합니다.
 $("searchForm").addEventListener("submit", event => { event.preventDefault(); search(); });
@@ -423,14 +560,18 @@ async function startPython() {
     $("engineMessage").textContent = "Python 계산 준비 완료";
     $("retry").hidden = true;
     $("manualAdd").disabled = false;
+    $("findReference").disabled = false;
     updatePreview();
     renderRecords();
   } catch (error) {
     pythonReady = false;
+    $("findReference").disabled = true;
+    $("applyReference").disabled = true;
     $("engineMessage").textContent = "Python을 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 다시 열어주세요.";
     $("retry").hidden = false;
   } finally { clearTimeout(delayed); }
 }
+$("referenceHelper").open = state.goal === null;
 renderRecords();
 startPython();
 
