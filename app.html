@@ -101,11 +101,7 @@ details[open]>summary::after{transform:rotate(225deg)}
 .delete:hover{color:#ad354b;background:#fff2f4;border-color:#ffe4e9}
 .records li.empty{display:block;padding:26px 12px 38px;border-top:1px solid #eaf0f6;color:#7c899d;font-size:.875rem;text-align:center}
 footer{margin:23px 5px 0;color:#738197;font-size:.75rem;line-height:1.8}
-footer>p{margin:0 0 10px}
-footer details{padding-top:10px;border-top:1px solid #e1e7ef}
-footer summary{justify-content:flex-start;gap:14px;font-size:.75rem;font-weight:500;color:#6d7b91}
-footer details>div{padding:9px 0 0;max-width:950px}
-footer details p{margin:0 0 8px}
+footer>p{margin:0 0 5px}
 a{color:var(--blue);text-underline-offset:3px}
 .storage{padding:13px 16px;border:1px solid #eadaba;background:#fff8ea;color:#775a24;border-radius:12px;margin-bottom:20px;font-size:.875rem}
 :focus-visible{outline:3px solid #82a7ef;outline-offset:3px}
@@ -128,7 +124,10 @@ a{color:var(--blue);text-underline-offset:3px}
 .reference-result{margin-top:16px;padding-top:16px;border-top:1px solid #dce5f2}
 .reference-result>div{font-size:.8125rem;color:#536985}
 .reference-value{display:block;color:#285cce;font-size:2rem;font-weight:700;line-height:1.4;margin-top:4px;font-variant-numeric:tabular-nums;letter-spacing:-.035em}
-.reference-result .primary{margin-top:15px}
+.reference-result-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.reference-result-row>div{min-width:0}
+.reference-result .primary{margin-top:0;flex-shrink:0;padding:10px 12px}
+@media(max-width:380px){.reference-result-row{flex-wrap:wrap}}
 @media(max-width:380px){.profile-fields{grid-template-columns:minmax(0,1fr);gap:0}.reference-helper{padding:12px}.reference-helper label{font-size:.875rem}}
 
 /* 이름만 표시하는 작은 음료 분류 버튼입니다. */
@@ -141,13 +140,26 @@ button.quick-drink:hover{background:#eff4fd;border-color:#aebfda}
 button.quick-drink[aria-pressed="true"]{background:#eaf1ff;border-color:#7c9ede;color:#285cce;font-weight:650}
 #searchChoices select{font-size:.875rem}
 @media(max-width:380px){.quick-grid{gap:6px}button.quick-drink{padding:6px 10px}}
+
+/* 오늘 기록은 파란 배경과 흰색 항목으로 구분합니다. */
+.history-card{background:#edf4ff;border-color:#c3d6f5;padding-bottom:22px}
+.history-card .section-head h2{color:#204d8e;font-weight:750}
+.history-card .section-head>span{background:#315fb2;color:#fff;padding:5px 11px}
+.history-card .records{display:grid;gap:9px}
+.history-card .records li{padding:16px 18px;border:1px solid #dae5f5;border-radius:12px;background:#fff}
+.history-card .record-name{color:#233f64;font-weight:650}
+.history-card .record-meta{color:#6a7e98}
+.history-card .record-value{padding:6px 10px;border-radius:9px;background:#e7efff;color:#2453a0;font-size:1.0625rem}
+.history-card .records li.empty{padding:25px 14px;background:#f8fbff;border:1px dashed #b8cdeb;color:#607b9c}
+@media(max-width:700px){.history-card{padding-bottom:20px}.history-card .records li{padding:14px;gap:10px}.history-card .record-value{font-size:1rem;padding:6px 8px}}
+@media(max-width:380px){.history-card .records li{padding:12px;gap:7px}.history-card .record-value{font-size:.9375rem;padding:5px 7px}}
 </style>
 </head>
 <body>
 <main>
   <header>
     <div class="brand"><div class="brand-mark" aria-hidden="true">g</div><div><h1>음료 당류 섭취 알리미</h1><p>마신 음료를 기록하고, 오늘의 누적 당류를 확인하세요.</p></div></div>
-    <div class="engine" role="status"><span id="engineMessage">Python 계산을 준비하고 있습니다.</span><button id="retry" class="outline small" hidden>다시 열기</button></div>
+    <div id="engineStatus" class="engine" role="status"><span id="engineMessage">계산 준비 중…</span><button id="retry" class="outline small" hidden>다시 열기</button></div>
   </header>
   <div id="storageMessage" class="storage" role="status" hidden></div>
   <div class="layout">
@@ -176,24 +188,31 @@ button.quick-drink[aria-pressed="true"]{background:#eaf1ff;border-color:#7c9ede;
       <div class="summary-top">
         <div class="card-heading"><span class="step" aria-hidden="true">02</span><h2 id="summaryTitle">오늘의 누적 당류</h2></div>
         <div class="hint" id="todayLabel"></div><div class="total"><strong id="total">—</strong><span>g</span></div>
-        <div id="alertMessage" class="notice" role="status">Python 계산이 준비되면 누적량을 표시합니다.</div>
+        <div id="alertMessage" class="notice" role="status">계산 준비 중…</div>
       </div>
       <div class="goal-panel">
         <details id="referenceHelper" class="reference-helper" open><summary>나이로 알림 기준 참고값 찾기</summary><div>
-        <form id="referenceForm">
-          <div class="profile-fields"><div class="field"><label for="age">만 나이 (12~18세)</label><input id="age" type="number" min="12" max="18" step="1" inputmode="numeric" placeholder="예: 16" required aria-describedby="referenceHint"></div><div class="field"><label for="sex">기준표의 성별</label><select id="sex" required><option value="">선택</option><option value="male">남자</option><option value="female">여자</option></select></div></div>
-          <button id="findReference" class="outline wide" type="submit" disabled>참고값 계산</button>
-          <p id="referenceHint" class="hint">2025 한국인 영양소 섭취기준을 활용합니다. 개인의 체격·활동량을 반영한 맞춤 권장량은 아닙니다. 범위 밖의 나이는 아래에서 직접 설정하세요.</p>
-          <p id="referenceMessage" class="feedback" role="status"></p>
+          <form id="referenceForm">
+            <div class="profile-fields">
+              <div class="field"><label for="age">만 나이 (12~18세)</label><input id="age" type="number" min="12" max="18" step="1" inputmode="numeric" placeholder="예: 16" required></div>
+              <div class="field"><label for="sex">성별</label><select id="sex" required><option value="">선택</option><option value="male">남자</option><option value="female">여자</option></select></div>
+            </div>
+            <button id="findReference" class="outline wide" type="submit" disabled>참고값 계산</button>
+            <p id="referenceMessage" class="feedback" role="status"></p>
+          </form>
+          <div id="referenceResult" class="reference-result" hidden aria-live="polite">
+            <div class="reference-result-row">
+              <div><span>알림 참고값</span><strong id="referenceValue" class="reference-value">—</strong></div>
+              <button id="applyReference" class="primary" type="button" disabled>기준으로 적용</button>
+            </div>
+            <p id="referenceHint" class="hint">음료 권장량이 아닌, 전체 식품의 첨가당 기준 참고값입니다.</p>
+          </div>
+        </div></details>
+        <form id="limitForm">
+          <label for="limit">내 알림 기준 (g)</label>
+          <div class="row"><input id="limit" type="number" min="0.1" max="1000" step="any" inputmode="decimal" placeholder="직접 입력 가능"><button class="outline" type="submit">적용</button></div>
+          <p class="hint">비워서 적용하면 알림이 꺼집니다.</p>
         </form>
-        <div id="referenceResult" class="reference-result" hidden aria-live="polite">
-          <div>하루 전체 식품의 첨가당 기준 환산값</div><strong id="referenceValue" class="reference-value">—</strong>
-          <p id="referenceFormula" class="hint"></p>
-          <p class="hint"><strong>음료만으로 이만큼 먹어도 된다는 뜻은 아닙니다.</strong> 이 앱은 영양표시의 총당류를 합산하므로 첨가당과 범위가 다르고, 음식·간식은 빠져 있습니다.</p>
-          <button id="applyReference" class="primary wide" type="button" disabled>이 수치를 내 기록 기준으로 적용</button>
-        </div>
-      </div></details>
-        <form id="limitForm"><label for="limit">내 알림 기준 (g)</label><div class="row"><input id="limit" type="number" min="0.1" max="1000" step="any" inputmode="decimal" placeholder="기준값 직접 입력"><button class="outline" type="submit">적용</button></div><p class="hint">직접 정한 기록 기준이며, 하루 권장섭취량을 뜻하지 않습니다. 비워서 적용하면 알림을 해제합니다.</p></form>
         <p id="limitMessage" class="feedback" role="status"></p>
       </div>
     </section>
@@ -202,14 +221,9 @@ button.quick-drink[aria-pressed="true"]{background:#eaf1ff;border-color:#7c9ede;
     <div class="section-head"><h2 id="historyTitle">오늘 마신 음료</h2><span id="recordCount">0건</span></div><ul id="records" class="records"></ul>
   </section>
   <footer>
-    <p>기록은 이 브라우저에 저장됩니다. 오늘 날짜의 음료만 합산하며, 음식·간식의 당류는 포함하지 않습니다.</p>
-    <details><summary>자료 출처·계산 기준</summary><div>
-      <p>검색 자료: 업로드한 원본의 음료 정보 40,765건. 원본에 기재된 출처는 ‘식품의약품안전처 식품영양성분 DB 가공식품 자료(2026-08-28)’입니다. 개별 제품의 최신 수치를 다시 대조한 자료는 아닙니다.</p>
-      <p>당류 = 기준량의 당류 × 마신 양 ÷ 기준량. mL와 g는 서로 바꾸지 않습니다. 등록 내용량은 여러 개를 묶은 포장 전체일 수 있으니 실제 포장을 확인하세요. 영양표시가 다르면 직접 입력하세요.</p>
-      <p>알림 참고값 출처: 보건복지부·한국영양학회, <a href="https://kns.or.kr/fileroom/fileroom_view.asp?BoardID=Kdr&amp;idx=167" target="_blank" rel="noopener noreferrer">2025 한국인 영양소 섭취기준</a> 요약표 viii~ix쪽. 에너지 필요추정량은 남자 12~14세 2,500kcal, 15~18세 2,700kcal, 여자 두 연령군 모두 2,000kcal입니다. 이 집단 참고값에 첨가당의 에너지 비율 10%를 곱한 뒤 4kcal/g으로 나눕니다. 해당 지침은 하루 전체 식품의 첨가당을 에너지의 10% 이내로 제한하고 가당음료를 가능한 줄이도록 안내합니다. 영양표시의 총당류에는 우유의 유당처럼 원래 들어 있는 당도 포함되므로 이 앱으로 첨가당 기준 준수 여부를 판정할 수 없습니다.</p>
-<p>나이·성별은 계산하는 동안만 사용하며 저장하지 않습니다. 기준표의 에너지 수치는 개인의 식사량 목표가 아닙니다. 개인의 체격·활동량 등에 따라 실제 필요량은 달라질 수 있습니다.</p>
-      <p>알림 참고값 계산, 당류 환산, 반복문을 이용한 누적 합계, 조건문을 이용한 기준 초과 판정은 Python으로 실행합니다. 화면과 버튼은 HTML·CSS·JavaScript로 연결합니다. 처음에는 인터넷에서 <a href="https://pyodide.org/en/0.27.7/usage/quickstart.html" target="_blank" rel="noopener noreferrer">Python 실행 환경</a>을 불러옵니다. 입력한 기록을 외부로 전송하지 않습니다.</p>
-    </div></details>
+    <p>오늘 마신 음료만 합산하며, 기록은 이 브라우저에 저장됩니다.</p>
+    <p>실제 제품의 영양표시를 확인하세요. 알림 기준은 개인별 권장량이 아닌 참고값입니다.</p>
+    <p>자료: 식약처 식품영양성분 DB(원본 표기) · <a href="https://kns.or.kr/fileroom/fileroom_view.asp?BoardID=Kdr&amp;idx=167" target="_blank" rel="noopener noreferrer">2025 한국인 영양소 섭취기준</a></p>
   </footer>
 </main>
 <noscript>이 페이지를 사용하려면 브라우저에서 JavaScript를 허용해 주세요.</noscript>
@@ -428,7 +442,72 @@ function productSection(drink, group) {
   }
   return { label: group.label + (zero ? " 제로" : ""), order: zero ? 1 : 0 };
 }
+// 대표 목록에는 원본에 등록된 제품·용량만 넣습니다.
+// 같은 용량의 제조사 중복을 줄이고, 각 종류는 최대 3개 용량만 표시합니다.
+// 배열의 순서: [원본 제품명, 등록 용량, 제조사]. 당류 값은 원본 DATA에서 가져옵니다.
+const REPRESENTATIVE_DRINKS = {
+  cola: [
+    ["코카콜라", "300ml", "코카콜라음료(주)"],
+    ["코카콜라", "1800ml", "코카콜라음료(주)"],
+    ["코카-콜라 제로제로", "350ml", "코카콜라음료(주)"],
+    ["코카-콜라 제로 레몬", "500ml", "코카콜라음료(주)"],
+    ["펩시", "245ml", "롯데칠성음료(주)"],
+    ["펩시", "1500ml", "롯데칠성음료(주)"],
+    ["펩시제로슈거", "250ml", "롯데칠성음료(주)"],
+    ["펩시제로슈거", "355ml", "롯데칠성음료(주)"]
+  ],
+  cider: [
+    ["스프라이트", "250ml", "코카콜라음료(주)"],
+    ["칠성사이다", "355ml", "롯데칠성음료(주)"],
+    ["스프라이트", "1000ml", "코카콜라음료(주)"],
+    ["스프라이트 제로", "250ml", "오케이에프음료 주식회사"],
+    ["칠성사이다제로", "355ml", "롯데칠성음료(주)"],
+    ["칠성사이다제로", "500ml", "롯데칠성음료(주)"]
+  ],
+  sports: [
+    ["게토레이블루볼트", "240ml", "롯데칠성음료(주)"],
+    ["포카리스웨트", "900ml", "동아오츠카주식회사"],
+    ["포카리스웨트", "1800ml", "동아오츠카(주)"],
+    ["게토레이제로", "240ml", "롯데칠성음료(주)"],
+    ["토레타! 제로", "500ml", "동원시스템즈 횡성공장"],
+    ["게토레이 제로", "600ml", "롯데칠성음료(주)"]
+  ],
+  milkis: [
+    ["밀키스", "250ml", "롯데칠성음료(주)"],
+    ["밀키스", "340ml", "롯데칠성음료(주)"],
+    ["밀키스제로딸기&바나나", "250ml", "롯데칠성음료(주)"],
+    ["밀키스제로", "300ml", "롯데칠성음료(주)"],
+    ["밀키스제로딸기&바나나", "500ml", "롯데칠성음료(주)"]
+  ],
+  banana: [
+    ["바나나맛우유", "200ml", "(주)빙그레김해공장"],
+    ["빙그레 바나나맛 우유", "240ml", "(주)빙그레"],
+    ["빙그레 바나나맛 우유", "960ml", "(주)빙그레"]
+  ],
+  chocolate: [
+    ["초코에몽", "180ml", "남양유업 주식회사 천안공장"],
+    ["초코에몽", "190ml", "남양유업 주식회사 천안공장"],
+    ["남양 초코에몽", "250ml", "남양유업 주식회사 천안신공장"]
+  ]
+};
+
+function representativeMatches(group) {
+  const result = [], sizesBySection = new Map();
+  for (const [name, size, maker] of REPRESENTATIVE_DRINKS[group.id] || []) {
+    const index = DATA.findIndex(drink => drink.n === name && drink.w === size && drink.m === maker);
+    if (index < 0 || !belongsToGroup(DATA[index], group)) continue;
+    const label = productSection(DATA[index], group).label;
+    if (!sizesBySection.has(label)) sizesBySection.set(label, new Set());
+    const sizes = sizesBySection.get(label);
+    if (sizes.size >= 3 || sizes.has(size)) continue;
+    sizes.add(size);
+    result.push(index);
+  }
+  return result.sort((a, b) => productSection(DATA[a], group).order - productSection(DATA[b], group).order || parseAmount(DATA[a].w).value - parseAmount(DATA[b].w).value);
+}
+
 function findDrinkMatches(keyword, group = null) {
+  if (group) return representativeMatches(group);
   const result = [], seen = new Set();
   for (const item of SEARCH) {
     const drink = DATA[item.index];
@@ -494,10 +573,10 @@ function search(groupId = null) {
   $("sugarPreview").textContent = "—";
   $("entryMessage").textContent = "";
   matches = findDrinkMatches(keyword, group);
-  // 분류 메뉴에서는 모든 용량을 보여 줍니다. 일반 검색은 25개씩 펼칩니다.
+  // 분류 메뉴는 종류별 대표 용량만, 이름 검색은 전체 자료를 25개씩 표시합니다.
   visibleCount = group ? matches.length : 25;
   $("drinkSelectLabel").textContent = group ? group.label + " · 제품·용량 선택" : "제품·용량 선택";
-  $("searchMessage").textContent = group ? group.label + " 제품 " + matches.length + "개 · 아래에서 종류와 용량을 선택하세요." : !keyword ? "음료 종류를 누르거나 이름을 입력하세요." : matches.length ? "검색 결과 " + matches.length + "개 · 실제 제품과 용량을 확인하세요." : "검색된 음료가 없습니다. 아래 ‘당류 직접 입력’을 이용하세요.";
+  $("searchMessage").textContent = group ? "종류별 대표 용량 2~3개만 표시합니다. 다른 제품은 이름으로 검색하세요." : !keyword ? "음료 종류를 누르거나 이름을 입력하세요." : matches.length ? "검색 결과 " + matches.length + "개 · 실제 제품과 용량을 확인하세요." : "검색된 음료가 없습니다. 아래 ‘당류 직접 입력’을 이용하세요.";
   renderChoices();
   if (!group && matches.length === 1) { $("drinkSelect").value = matches[0]; selectDrink(); }
 }
@@ -517,7 +596,8 @@ function renderChoices() {
       sectionLabel = label;
     }
     const size = drink.w ? drink.w.replace(/ml$/i, " mL") : "내용량 미확인";
-    const option = new Option(drink.n + " · " + size + " · " + (drink.m || "제조사 미확인"), String(index));
+    const text = drink.n + " · " + size;
+    const option = new Option(group ? text : text + " · " + (drink.m || "제조사 미확인"), String(index));
     if (section) section.append(option); else select.add(option);
   }
   if (selectedIndex !== null) select.value = String(selectedIndex);
@@ -562,7 +642,8 @@ function callPython(action, data) {
     return JSON.parse(python.runPython("process_request(_request)"));
   } catch (error) {
     pythonReady = false;
-    $("engineMessage").textContent = "Python 계산을 완료하지 못했습니다. 입력값을 확인하고 다시 열어주세요.";
+    $("engineStatus").hidden = false;
+    $("engineMessage").textContent = "계산하지 못했습니다. 입력값을 확인한 뒤 다시 열어주세요.";
     $("retry").hidden = false;
     $("addDrink").disabled = true;
     $("manualAdd").disabled = true;
@@ -598,7 +679,7 @@ function renderRecords() {
   const summary = callPython("summary", { records: records, limit: state.goal });
   $("todayLabel").textContent = date + " · 기록한 음료의 당류";
   $("total").textContent = summary ? format(summary.total) : "—";
-  $("alertMessage").textContent = summary ? summary.message : "Python 계산이 준비되면 누적량과 알림을 표시합니다.";
+  $("alertMessage").textContent = summary ? summary.message : "계산 준비 중…";
   $("alertMessage").className = "notice" + (summary && summary.over ? " over" : "");
   $("recordCount").textContent = records.length + "건";
   $("limit").value = state.goal === null ? "" : state.goal;
@@ -609,6 +690,13 @@ function renderRecords() {
     html += '<li><div class="record-main"><div class="record-name">' + escapeHtml(entry.name) + '</div><div class="record-meta">' + escapeHtml(amount) + '</div></div><span class="record-value">' + format(entry.sugar) + 'g</span><button class="delete" data-delete="' + escapeHtml(entry.id) + '" aria-label="' + escapeHtml(entry.name) + ' 기록 삭제">삭제</button></li>';
   }
   $("records").innerHTML = html || '<li class="empty">아직 기록한 음료가 없습니다.</li>';
+}
+
+let limitMessageTimer = null;
+function showLimitMessage(message, temporary = false) {
+  clearTimeout(limitMessageTimer);
+  $("limitMessage").textContent = message;
+  if (temporary) limitMessageTimer = setTimeout(() => { $("limitMessage").textContent = ""; }, 3000);
 }
 
 // 입력을 바꾸면 이전 참고값을 적용하지 못하도록 비웁니다.
@@ -623,16 +711,15 @@ $("sex").addEventListener("change", clearReference);
 $("referenceForm").addEventListener("submit", event => {
   event.preventDefault();
   clearReference();
-  if (!pythonReady) { $("referenceMessage").textContent = "Python 계산이 준비될 때까지 기다려 주세요."; return; }
+  if (!pythonReady) { $("referenceMessage").textContent = "계산이 준비될 때까지 기다려 주세요."; return; }
   const age = number($("age").value), sex = $("sex").value;
   if (!Number.isInteger(age) || age < 12 || age > 18 || !["male", "female"].includes(sex)) {
-    $("referenceMessage").textContent = "만 12~18세의 나이와 기준표의 성별을 입력하세요.";
+    $("referenceMessage").textContent = "만 12~18세와 성별을 입력하세요.";
     return;
   }
   reference = callPython("reference", { age: age, sex: sex });
-  if (!reference) { $("referenceMessage").textContent = "참고값을 계산하지 못했습니다. 위의 Python 상태를 확인하세요."; return; }
+  if (!reference) { $("referenceMessage").textContent = "참고값을 계산하지 못했습니다. 위의 안내를 확인해 주세요."; return; }
   $("referenceValue").textContent = format(reference.reference) + "g";
-  $("referenceFormula").textContent = (sex === "male" ? "남자 " : "여자 ") + reference.group + " 기준표: " + reference.energy.toLocaleString("ko-KR") + "kcal × 10% ÷ 4kcal/g = " + format(reference.reference) + "g";
   $("referenceResult").hidden = false;
   $("applyReference").disabled = false;
 });
@@ -640,7 +727,7 @@ $("applyReference").addEventListener("click", () => {
   if (!pythonReady || !reference) return;
   const value = reference.reference;
   changeState(data => { data.goal = value; });
-  $("limitMessage").textContent = "참고값 " + format(value) + "g을 내 기록 기준으로 적용했습니다. 직접 수정할 수 있습니다.";
+  showLimitMessage(format(value) + "g 적용됨", true);
   $("referenceHelper").open = false;
   $("limit").focus();
 });
@@ -678,9 +765,9 @@ $("manualForm").addEventListener("submit", event => {
 $("limitForm").addEventListener("submit", event => {
   event.preventDefault();
   const text = $("limit").value, value = number(text);
-  if (text !== "" && (value === null || value < 0.1 || value > 1000)) { $("limitMessage").textContent = "0.1 이상 1,000 이하의 기준을 입력하세요."; return; }
+  if (text !== "" && (value === null || value < 0.1 || value > 1000)) { showLimitMessage("0.1~1,000g 사이로 입력하세요."); return; }
   changeState(data => { data.goal = text === "" ? null : value; });
-  $("limitMessage").textContent = text === "" ? "알림 기준을 해제했습니다." : "기준을 " + value + "g으로 설정했습니다.";
+  showLimitMessage(text === "" ? "알림 해제됨" : format(value) + "g 적용됨", true);
 });
 $("records").addEventListener("click", event => {
   const button = event.target.closest("[data-delete]");
@@ -696,7 +783,7 @@ setInterval(refreshDate, 60000);
 // 화면은 바로 열고, Python 실행 환경을 뒤에서 불러옵니다.
 async function startPython() {
   const base = "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/";
-  const delayed = setTimeout(() => { if (!pythonReady) { $("engineMessage").textContent = "Python 준비가 늦어지고 있습니다. 인터넷 연결을 확인하거나 다시 열어주세요."; $("retry").hidden = false; } }, 45000);
+  const delayed = setTimeout(() => { if (!pythonReady) { $("engineMessage").textContent = "준비가 늦어지고 있습니다. 인터넷 연결을 확인해 주세요."; $("retry").hidden = false; } }, 45000);
   try {
     await new Promise((resolve, reject) => {
       const script = document.createElement("script");
@@ -710,7 +797,8 @@ async function startPython() {
     python = await window.loadPyodide({ indexURL: base });
     python.runPython($("pythonCode").textContent);
     pythonReady = true;
-    $("engineMessage").textContent = "Python 계산 준비 완료";
+    $("engineMessage").textContent = "";
+    $("engineStatus").hidden = true;
     $("retry").hidden = true;
     $("manualAdd").disabled = false;
     $("findReference").disabled = false;
@@ -718,9 +806,10 @@ async function startPython() {
     renderRecords();
   } catch (error) {
     pythonReady = false;
+    $("engineStatus").hidden = false;
     $("findReference").disabled = true;
     $("applyReference").disabled = true;
-    $("engineMessage").textContent = "Python을 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 다시 열어주세요.";
+    $("engineMessage").textContent = "계산을 준비하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 열어주세요.";
     $("retry").hidden = false;
   } finally { clearTimeout(delayed); }
 }
